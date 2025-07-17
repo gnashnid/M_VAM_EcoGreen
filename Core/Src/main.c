@@ -22,6 +22,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "stdbool.h"
+#include "stdlib.h"
 #include "DFPLAYER_MINI.h"
 /* USER CODE END Includes */
 
@@ -53,9 +54,11 @@ DMA_HandleTypeDef hdma_usart2_rx;
 /* USER CODE BEGIN PV */
 CAN_RxHeaderTypeDef RxHeader;
 
-uint8_t RxData[8], uart_data[50], oneFloor, tenFloor, floorNow;
+uint8_t RxData[8], uart_data[50], oneFloor, tenFloor, floorNow, speed;
 bool speakFloor, speakDoorOpen, speakDoorClose, speakDiriectionUp, speakDirectionDown, speakFire, speakOverLoad,
-	 isSpeakFloor, isSpeakDoorOpen, isSpeakDoorClose, isSpeakDiriectionUp, isSpeakDirectionDown, isSpeakFire, isSpeakOverLoad;
+	 isSpeakFloor, isSpeakDoorOpen, isSpeakDoorClose, isSpeakDiriectionUp, isSpeakDirectionDown,
+	 isSpeakFire, isSpeakOverLoad, detect_speed, read_speed;
+uint32_t timer;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -68,6 +71,7 @@ static void MX_TIM3_Init(void);
 static void MX_IWDG_Init(void);
 /* USER CODE BEGIN PFP */
 uint8_t speaker_floor_funtion(uint8_t tenFloor,uint8_t oneFloor);
+void Set_speed_can(CAN_HandleTypeDef hcan, bool detect_speed, uint8_t speed);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -78,6 +82,7 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 	{
 		HAL_NVIC_SystemReset();
 	}
+	read_speed = true;
 	if (RxHeader.StdId == 0x501)
 	{
 		if ((RxData[0]&0x04) == 0x04)
@@ -199,7 +204,7 @@ int main(void)
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
-
+  __HAL_DBGMCU_FREEZE_IWDG();
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
@@ -211,6 +216,26 @@ int main(void)
   MX_IWDG_Init();
   /* USER CODE BEGIN 2 */
   HAL_TIM_Base_Start_IT(&htim3);
+  while (!detect_speed)
+  {
+	  if (!read_speed)
+	  {
+		  if (abs(HAL_GetTick() - timer) > 500)
+		  {
+			  timer = HAL_GetTick();
+			  speed ++;
+			  if (speed > 3)
+			  {
+				  speed = 1;
+			  }
+			  Set_speed_can(hcan, detect_speed, speed);
+		  }
+	  } else
+	  {
+		  detect_speed = true;
+		  Set_speed_can(hcan, detect_speed, speed);
+	  }
+  }
   HAL_UARTEx_ReceiveToIdle_DMA(&huart2, uart_data, 50);
   __HAL_DMA_DISABLE_IT(&hdma_usart2_rx, DMA_IT_HT);
   DF_Init(30);
@@ -286,27 +311,18 @@ int main(void)
 	  }
 	  if (speakFire) // fire
 	  {
-		  if (!isSpeakFire)
-		  {
-			  DF_Play(39);
-			  while (uart_data[6] != 39);
-			  isSpeakFire = true;
-		  }
-	  } else
-	  {
-		  isSpeakFire = false;
+		  DF_Play(39);
+		  while (uart_data[6] != 39);
+		  HAL_Delay(1000);
+		  speakFire = false;
 	  }
+
 	  if (speakOverLoad) // overload
 	  {
-		  if (!isSpeakOverLoad)
-		  {
-			  DF_Play(40);
-			  while (uart_data[6] != 40);
-			  isSpeakOverLoad = true;
-		  }
-	  } else
-	  {
-		  isSpeakOverLoad = false;
+		  DF_Play(40);
+		  while (uart_data[6] != 40);
+		  HAL_Delay(1000);
+		  speakOverLoad = false;
 	  }
 	  HAL_Delay(100);
   }
@@ -369,11 +385,11 @@ static void MX_CAN_Init(void)
 
   /* USER CODE END CAN_Init 1 */
   hcan.Instance = CAN1;
-  hcan.Init.Prescaler = 40;
-  hcan.Init.Mode = CAN_MODE_SILENT;
+  hcan.Init.Prescaler = 36;
+  hcan.Init.Mode = CAN_MODE_NORMAL;
   hcan.Init.SyncJumpWidth = CAN_SJW_2TQ;
-  hcan.Init.TimeSeg1 = CAN_BS1_15TQ;
-  hcan.Init.TimeSeg2 = CAN_BS2_2TQ;
+  hcan.Init.TimeSeg1 = CAN_BS1_6TQ;
+  hcan.Init.TimeSeg2 = CAN_BS2_3TQ;
   hcan.Init.TimeTriggeredMode = DISABLE;
   hcan.Init.AutoBusOff = ENABLE;
   hcan.Init.AutoWakeUp = DISABLE;
@@ -385,33 +401,6 @@ static void MX_CAN_Init(void)
     Error_Handler();
   }
   /* USER CODE BEGIN CAN_Init 2 */
-	CAN_FilterTypeDef canfilterconfig1, canfilterconfig2;
-	canfilterconfig1.FilterActivation = CAN_FILTER_ENABLE;
-	canfilterconfig1.FilterBank = 0;
-	canfilterconfig1.FilterFIFOAssignment = CAN_FILTER_FIFO0;
-	canfilterconfig1.FilterIdHigh = 0x501<<5;
-	canfilterconfig1.FilterIdLow = 0;
-	canfilterconfig1.FilterMaskIdHigh = 0xFFF<<5;
-	canfilterconfig1.FilterMaskIdLow = 0;
-	canfilterconfig1.FilterMode = CAN_FILTERMODE_IDMASK;
-	canfilterconfig1.FilterScale = CAN_FILTERSCALE_32BIT;
-	canfilterconfig1.SlaveStartFilterBank = 14;
-	canfilterconfig2.FilterActivation = CAN_FILTER_ENABLE;
-	canfilterconfig2.FilterBank = 1;
-	canfilterconfig2.FilterFIFOAssignment = CAN_FILTER_FIFO0;
-	canfilterconfig2.FilterIdHigh = 0x502<<5;
-	canfilterconfig2.FilterIdLow = 0;
-	canfilterconfig2.FilterMaskIdHigh = 0xFFF<<5;
-	canfilterconfig2.FilterMaskIdLow = 0;
-	canfilterconfig2.FilterMode = CAN_FILTERMODE_IDMASK;
-	canfilterconfig2.FilterScale = CAN_FILTERSCALE_32BIT;
-	canfilterconfig2.SlaveStartFilterBank = 14;
-
-	HAL_CAN_ConfigFilter(&hcan, &canfilterconfig1);
-	HAL_CAN_ConfigFilter(&hcan, &canfilterconfig2);
-	HAL_CAN_Init(&hcan);
-	HAL_CAN_Start(&hcan);
-	HAL_CAN_ActivateNotification(&hcan, CAN_IT_RX_FIFO0_MSG_PENDING);
 
   /* USER CODE END CAN_Init 2 */
 
@@ -588,11 +577,77 @@ uint8_t speaker_floor_funtion(uint8_t tenFloor,uint8_t oneFloor)
 		floor = oneFloor - 0x30;
 	} else
 	{
-		floor = (tenFloor - 0x30)*10 - (oneFloor - 0x30);
+		floor = (tenFloor - 0x30)*10 + (oneFloor - 0x30);
 	}
 	return floor;
 }
+void Set_speed_can(CAN_HandleTypeDef hcan, bool detect_speed, uint8_t speed)
+{
+	hcan.Init.Mode = CAN_MODE_SILENT;
+	if (speed == 1)
+	{
+		hcan.Init.Prescaler = 30;
+		hcan.Init.TimeSeg1 = CAN_BS1_8TQ;
+		hcan.Init.TimeSeg2 = CAN_BS2_3TQ;
+	} else if (speed == 2)
+	{
+		hcan.Init.Prescaler = 40;
+		hcan.Init.TimeSeg1 = CAN_BS1_12TQ;
+		hcan.Init.TimeSeg2 = CAN_BS2_5TQ;
+	} else if (speed == 3)
+	{
+		hcan.Init.Prescaler = 60;//80
+		hcan.Init.TimeSeg1 = CAN_BS1_16TQ;//15
+		hcan.Init.TimeSeg2 = CAN_BS2_7TQ;//2
+	}
+	hcan.Init.AutoRetransmission = ENABLE;
+	hcan.Init.SyncJumpWidth = CAN_SJW_3TQ;
+	hcan.Init.AutoBusOff = ENABLE;
 
+	HAL_CAN_Init(&hcan);
+	if (detect_speed)
+	{
+		CAN_FilterTypeDef canfilterconfig;
+		canfilterconfig.FilterActivation = CAN_FILTER_ENABLE;
+		canfilterconfig.FilterBank = 0;
+		canfilterconfig.FilterFIFOAssignment = CAN_FILTER_FIFO0;
+		canfilterconfig.FilterIdHigh = 0x501<<5;
+		canfilterconfig.FilterIdLow = 0;
+		canfilterconfig.FilterMaskIdHigh = 0xFFF<<5;
+		canfilterconfig.FilterMaskIdLow = 0;
+		canfilterconfig.FilterMode = CAN_FILTERMODE_IDMASK;
+		canfilterconfig.FilterScale = CAN_FILTERSCALE_32BIT;
+		canfilterconfig.SlaveStartFilterBank = 14;
+		HAL_CAN_ConfigFilter(&hcan, &canfilterconfig);
+		canfilterconfig.FilterActivation = CAN_FILTER_ENABLE;
+		canfilterconfig.FilterBank = 1;
+		canfilterconfig.FilterFIFOAssignment = CAN_FILTER_FIFO0;
+		canfilterconfig.FilterIdHigh = 0x502<<5;
+		canfilterconfig.FilterIdLow = 0;
+		canfilterconfig.FilterMaskIdHigh = 0xFFF<<5;
+		canfilterconfig.FilterMaskIdLow = 0;
+		canfilterconfig.FilterMode = CAN_FILTERMODE_IDMASK;
+		canfilterconfig.FilterScale = CAN_FILTERSCALE_32BIT;
+		canfilterconfig.SlaveStartFilterBank = 14;
+		HAL_CAN_ConfigFilter(&hcan, &canfilterconfig);
+	} else
+	{
+		CAN_FilterTypeDef canfilterconfig;
+		canfilterconfig.FilterActivation = CAN_FILTER_ENABLE;
+		canfilterconfig.FilterBank = 0;
+		canfilterconfig.FilterFIFOAssignment = CAN_FILTER_FIFO0;
+		canfilterconfig.FilterIdHigh = 0<<5;
+		canfilterconfig.FilterIdLow = 0;
+		canfilterconfig.FilterMaskIdHigh = 0<<5;
+		canfilterconfig.FilterMaskIdLow = 0;
+		canfilterconfig.FilterMode = CAN_FILTERMODE_IDMASK;
+		canfilterconfig.FilterScale = CAN_FILTERSCALE_32BIT;
+		canfilterconfig.SlaveStartFilterBank = 14;
+		HAL_CAN_ConfigFilter(&hcan, &canfilterconfig);
+	}
+	HAL_CAN_Start(&hcan);
+	HAL_CAN_ActivateNotification(&hcan, CAN_IT_RX_FIFO0_MSG_PENDING);
+}
 /* USER CODE END 4 */
 
 /**
