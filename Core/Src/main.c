@@ -54,7 +54,7 @@ DMA_HandleTypeDef hdma_usart2_rx;
 /* USER CODE BEGIN PV */
 CAN_RxHeaderTypeDef RxHeader;
 
-uint8_t RxData[8], uart_data[50], oneFloor, tenFloor, floorNow, speed;
+uint8_t RxData[8], uart_data[50], oneFloor, tenFloor, floorNow, speed, speakerButton[5][4], button[3];
 bool speakFloor, speakDoorOpen, speakDoorClose, speakDiriectionUp, speakDirectionDown, speakFire, speakOverLoad,
 	 isSpeakFloor, isSpeakDoorOpen, isSpeakDoorClose, isSpeakDiriectionUp, isSpeakDirectionDown,
 	 isSpeakFire, isSpeakOverLoad, detect_speed, read_speed;
@@ -70,8 +70,9 @@ static void MX_USART2_UART_Init(void);
 static void MX_TIM3_Init(void);
 static void MX_IWDG_Init(void);
 /* USER CODE BEGIN PFP */
-uint8_t speaker_floor_funtion(uint8_t tenFloor,uint8_t oneFloor);
+void speaker_floor(uint8_t tenFloor, uint8_t oneFloor);
 void Set_speed_can(CAN_HandleTypeDef hcan, bool detect_speed, uint8_t speed);
+void speaker_push_button(uint8_t speakerButton[5][4]);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -161,6 +162,34 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 	{
 		oneFloor = RxData[2];
 		tenFloor = RxData[1];
+	} else if (RxHeader.StdId == 0x503)
+	{
+		if ((RxData[0] & 0x01) ==  0x01)
+		{
+			if (RxData[0] != button[0] || RxData[2] != button[1] || RxData[3] != button[2])
+			{
+				button[0] = RxData[0];
+				button[1] = RxData[2];
+				button[2] = RxData[3];
+				for (uint8_t i=0; i<5; i++)
+				{
+					if (speakerButton[i][0] == 0)
+					{
+						speakerButton[i][0] = 1;
+						if ((RxData[0] & 0x04) ==  0x04)
+						{
+							speakerButton[i][1] = 1;
+						} else
+						{
+							speakerButton[i][1] = 0;
+						}
+						speakerButton[i][2] = button[1];
+						speakerButton[i][3] = button[2];
+						return;
+					}
+				}
+			}
+		}
 	}
 }
 void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
@@ -248,11 +277,13 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+	  speaker_push_button(speakerButton);
+
 	  if (speakFloor)
 	  {
 		  if (!isSpeakFloor)
 		  {
-			  floorNow = speaker_floor_funtion(tenFloor, oneFloor);
+//			  floorNow = speaker_floor_funtion(tenFloor, oneFloor);
 			  DF_Play(floorNow);
 			  while (uart_data[6] != floorNow);
 			  isSpeakFloor = true;
@@ -560,27 +591,7 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE BEGIN 4 */
 
-uint8_t speaker_floor_funtion(uint8_t tenFloor,uint8_t oneFloor)
-{
-	uint8_t floor;
-	if (tenFloor == 0x48) // H
-	{
-		if (oneFloor == 0x31)
-		{
-			floor = 33;
-		} else if (oneFloor == 0x32)
-		{
-			floor = 34;
-		}
-	} else if (tenFloor == 0x20)
-	{
-		floor = oneFloor - 0x30;
-	} else
-	{
-		floor = (tenFloor - 0x30)*10 + (oneFloor - 0x30);
-	}
-	return floor;
-}
+
 void Set_speed_can(CAN_HandleTypeDef hcan, bool detect_speed, uint8_t speed)
 {
 	hcan.Init.Mode = CAN_MODE_SILENT;
@@ -630,6 +641,17 @@ void Set_speed_can(CAN_HandleTypeDef hcan, bool detect_speed, uint8_t speed)
 		canfilterconfig.FilterScale = CAN_FILTERSCALE_32BIT;
 		canfilterconfig.SlaveStartFilterBank = 14;
 		HAL_CAN_ConfigFilter(&hcan, &canfilterconfig);
+		canfilterconfig.FilterActivation = CAN_FILTER_ENABLE;
+		canfilterconfig.FilterBank = 3;
+		canfilterconfig.FilterFIFOAssignment = CAN_FILTER_FIFO0;
+		canfilterconfig.FilterIdHigh = 0x503<<5;
+		canfilterconfig.FilterIdLow = 0;
+		canfilterconfig.FilterMaskIdHigh = 0xFFF<<5;
+		canfilterconfig.FilterMaskIdLow = 0;
+		canfilterconfig.FilterMode = CAN_FILTERMODE_IDMASK;
+		canfilterconfig.FilterScale = CAN_FILTERSCALE_32BIT;
+		canfilterconfig.SlaveStartFilterBank = 14;
+		HAL_CAN_ConfigFilter(&hcan, &canfilterconfig);
 	} else
 	{
 		CAN_FilterTypeDef canfilterconfig;
@@ -647,6 +669,51 @@ void Set_speed_can(CAN_HandleTypeDef hcan, bool detect_speed, uint8_t speed)
 	}
 	HAL_CAN_Start(&hcan);
 	HAL_CAN_ActivateNotification(&hcan, CAN_IT_RX_FIFO0_MSG_PENDING);
+}
+void speaker_floor(uint8_t tenFloor, uint8_t oneFloor)
+{
+	uint8_t floor;
+	if (tenFloor == 0x48) // H
+	{
+		if (oneFloor == 0x31)
+		{
+			floor = 33;
+		} else if (oneFloor == 0x32)
+		{
+			floor = 34;
+		}
+	} else if (tenFloor == 0x20)
+	{
+		floor = oneFloor - 0x30;
+	} else
+	{
+		floor = (tenFloor - 0x30)*10 + (oneFloor - 0x30);
+	}
+	DF_Play(floor);
+	while (uart_data[6] != floor);
+}
+void speaker_push_button(uint8_t speakerButton[5][4])
+{
+	if (speakerButton[0][0] == 1)
+	{
+		if (speakerButton[0][1] == 1)
+		{
+			// đọc cancel
+		}
+		// đọc tầng
+		speaker_floor(speakerButton[0][2], speakerButton[0][3]);
+		for (uint8_t i=0; i<4; i++)
+		{
+			speakerButton[i][0] = speakerButton[i+1][0];
+			speakerButton[i][1] = speakerButton[i+1][1];
+			speakerButton[i][2] = speakerButton[i+1][2];
+			speakerButton[i][3] = speakerButton[i+1][3];
+		}
+		speakerButton[4][0] = 0;
+		speakerButton[4][1] = 0;
+		speakerButton[4][2] = 0;
+		speakerButton[4][3] = 0;
+	}
 }
 /* USER CODE END 4 */
 
