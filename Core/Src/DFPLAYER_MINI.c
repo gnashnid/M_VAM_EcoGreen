@@ -114,9 +114,9 @@ void Check_Key (void)
 		DF_Next();
 	}
 }
-void DF_Play(uint8_t data)
+void DF_Play(uint16_t data)
 {
-  Send_cmd(0x03,0x00,data);
+  Send_cmd(0x03, (data>>8)&0xFF, data&0xFF);
   HAL_Delay(200);
 }
 

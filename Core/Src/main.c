@@ -33,7 +33,14 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+#define speak_state_floor 7
+#define speak_state_fire 1
+#define speak_state_door 4
+#define speak_state_overload 5
+#define speak_state_recue 6
+#define speak_state_fault 8
+#define speak_state_VIP 9
+#define speak_state_direction 11
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -54,10 +61,12 @@ DMA_HandleTypeDef hdma_usart2_rx;
 /* USER CODE BEGIN PV */
 CAN_RxHeaderTypeDef RxHeader;
 
-uint8_t RxData[8], uart_data[50], oneFloor, tenFloor, floorNow, speed, speakerButton[5][4], button[3];
+uint8_t RxData[8], rxDataSave[8], uart_data[50], oneFloor, tenFloor, floorNow, speed, speakerButton[5][4],
+		speakerState[5][2], button[3];
 bool speakFloor, speakDoorOpen, speakDoorClose, speakDiriectionUp, speakDirectionDown, speakFire, speakOverLoad,
 	 isSpeakFloor, isSpeakDoorOpen, isSpeakDoorClose, isSpeakDiriectionUp, isSpeakDirectionDown,
 	 isSpeakFire, isSpeakOverLoad, detect_speed, read_speed;
+uint16_t feedbackSpeaker;
 uint32_t timer;
 /* USER CODE END PV */
 
@@ -86,78 +95,105 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 	read_speed = true;
 	if (RxHeader.StdId == 0x501)
 	{
-		if ((RxData[0]&0x04) == 0x04)
+		if ((RxData[0] & 0x04) == 0x04)
 		{
-			if (RxData[2] == 0x07) // floor
+			if (RxData[2] == 0x07)
 			{
-				speakFloor = true;
-				speakFire = false;
-				speakOverLoad = false;
-				speakDoorOpen = false;
-				speakDoorClose = false;
-				speakDiriectionUp = false;
-				speakDirectionDown = false;
-			} else if (RxData[2] == 0x04) // door
-			{
-				if (RxData[4] == 0x01)
+				if (RxData[2] |= rxDataSave[2])
 				{
-					speakDoorOpen = true;
-					speakDoorClose = false;
-				} else if (RxData[4] == 0x02)
-				{
-					speakDoorOpen = false;
-					speakDoorClose = true;
+					rxDataSave[2] = RxData[2];
+					for (uint8_t i=0; i<5; i++)
+					{
+						if (speakerState[i][0] == 0)
+						{
+//							speakerButton[i][0] = ;
+							if ((RxData[0] & 0x04) ==  0x04)
+							{
+								speakerButton[i][1] = 1;
+							} else
+							{
+								speakerButton[i][1] = 0;
+							}
+							speakerButton[i][2] = button[1];
+							speakerButton[i][3] = button[2];
+							return;
+						}
+					}
 				}
-				speakFloor = false;
-				speakFire = false;
-				speakOverLoad = false;
-				speakDiriectionUp = false;
-				speakDirectionDown = false;
-			}  else if (RxData[2] == 0x01) // fire
-			{
-				speakFloor = false;
-				speakFire = true;
-				speakOverLoad = false;
-				speakDoorOpen = false;
-				speakDoorClose = false;
-				speakDiriectionUp = false;
-				speakDirectionDown = false;
-			}  else if (RxData[2] == 0x05) // over load
-			{
-				speakFloor = false;
-				speakFire = false;
-				speakOverLoad = true;
-				speakDoorOpen = false;
-				speakDoorClose = false;
-				speakDiriectionUp = false;
-				speakDirectionDown = false;
-			}  else if (RxData[2] == 0x0B) // direction
-			{
-				if (RxData[3] == 0x01) // up
-				{
-					speakDiriectionUp = true;
-					speakDirectionDown = false;
-				} else if (RxData[3] == 0x02) // down
-				{
-					speakDiriectionUp = false;
-					speakDirectionDown = true;
-				}
-				speakFloor = false;
-				speakFire = false;
-				speakOverLoad = false;
-				speakDoorOpen = false;
-				speakDoorClose = false;
 			}
-		} else
-		{
-			speakFloor = false;
-			speakFire = false;
-			speakOverLoad = false;
-			speakDoorOpen = false;
-			speakDoorClose = false;
-			speakDiriectionUp = false;
-			speakDirectionDown = false;
 		}
+//		if ((RxData[0]&0x04) == 0x04)
+//		{
+//			if (RxData[2] == 0x07) // floor
+//			{
+//				speakFloor = true;
+//				speakFire = false;
+//				speakOverLoad = false;
+//				speakDoorOpen = false;
+//				speakDoorClose = false;
+//				speakDiriectionUp = false;
+//				speakDirectionDown = false;
+//			} else if (RxData[2] == 0x04) // door
+//			{
+//				if (RxData[4] == 0x01)
+//				{
+//					speakDoorOpen = true;
+//					speakDoorClose = false;
+//				} else if (RxData[4] == 0x02)
+//				{
+//					speakDoorOpen = false;
+//					speakDoorClose = true;
+//				}
+//				speakFloor = false;
+//				speakFire = false;
+//				speakOverLoad = false;
+//				speakDiriectionUp = false;
+//				speakDirectionDown = false;
+//			}  else if (RxData[2] == 0x01) // fire
+//			{
+//				speakFloor = false;
+//				speakFire = true;
+//				speakOverLoad = false;
+//				speakDoorOpen = false;
+//				speakDoorClose = false;
+//				speakDiriectionUp = false;
+//				speakDirectionDown = false;
+//			}  else if (RxData[2] == 0x05) // over load
+//			{
+//				speakFloor = false;
+//				speakFire = false;
+//				speakOverLoad = true;
+//				speakDoorOpen = false;
+//				speakDoorClose = false;
+//				speakDiriectionUp = false;
+//				speakDirectionDown = false;
+//			}  else if (RxData[2] == 0x0B) // direction
+//			{
+//				if (RxData[3] == 0x01) // up
+//				{
+//					speakDiriectionUp = true;
+//					speakDirectionDown = false;
+//				} else if (RxData[3] == 0x02) // down
+//				{
+//					speakDiriectionUp = false;
+//					speakDirectionDown = true;
+//				}
+//				speakFloor = false;
+//				speakFire = false;
+//				speakOverLoad = false;
+//				speakDoorOpen = false;
+//				speakDoorClose = false;
+//			}
+//		} else
+//		{
+//			speakFloor = false;
+//			speakFire = false;
+//			speakOverLoad = false;
+//			speakDoorOpen = false;
+//			speakDoorClose = false;
+//			speakDiriectionUp = false;
+//			speakDirectionDown = false;
+//		}
 	} else if (RxHeader.StdId == 0x502)
 	{
 		oneFloor = RxData[2];
@@ -196,8 +232,12 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
 {
 	if (huart->Instance == huart2.Instance)
 	{
-		HAL_UARTEx_ReceiveToIdle_DMA(&huart2, uart_data, 50);
+		HAL_UARTEx_ReceiveToIdle_DMA(&huart2, uart_data, Size);
 		__HAL_DMA_DISABLE_IT(&hdma_usart2_rx, DMA_IT_HT);
+		if (uart_data[3] == 0x3D || uart_data[3] == 0x3F)
+		{
+			feedbackSpeaker = (uart_data[5]<<8)|uart_data[6];
+		}
 	}
 }
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
@@ -267,6 +307,9 @@ int main(void)
   }
   HAL_UARTEx_ReceiveToIdle_DMA(&huart2, uart_data, 50);
   __HAL_DMA_DISABLE_IT(&hdma_usart2_rx, DMA_IT_HT);
+  while (feedbackSpeaker != 0x02)
+  HAL_Delay(100);
+  feedbackSpeaker = 0;
   DF_Init(30);
   /* USER CODE END 2 */
 
@@ -672,7 +715,7 @@ void Set_speed_can(CAN_HandleTypeDef hcan, bool detect_speed, uint8_t speed)
 }
 void speaker_floor(uint8_t tenFloor, uint8_t oneFloor)
 {
-	uint8_t floor;
+	uint16_t floor;
 	if (tenFloor == 0x48) // H
 	{
 		if (oneFloor == 0x31)
@@ -689,8 +732,10 @@ void speaker_floor(uint8_t tenFloor, uint8_t oneFloor)
 	{
 		floor = (tenFloor - 0x30)*10 + (oneFloor - 0x30);
 	}
+	floor += 100;
 	DF_Play(floor);
-	while (uart_data[6] != floor);
+	while (feedbackSpeaker != floor);
+	feedbackSpeaker = 0;
 }
 void speaker_push_button(uint8_t speakerButton[5][4])
 {
