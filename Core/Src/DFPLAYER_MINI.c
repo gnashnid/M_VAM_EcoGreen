@@ -114,12 +114,16 @@ void Check_Key (void)
 		DF_Next();
 	}
 }
-void DF_Play(uint16_t data)
+void DF_Play(uint8_t data)
 {
-  Send_cmd(0x03, (data>>8)&0xFF, data&0xFF);
+  Send_cmd(0x03, 0, data);
   HAL_Delay(200);
 }
-
+void DF_Play_from_Folder(uint8_t num_folder, uint8_t num_music)
+{
+  Send_cmd(0x0F, num_folder, num_music);
+  HAL_Delay(200);
+}
 
 
 

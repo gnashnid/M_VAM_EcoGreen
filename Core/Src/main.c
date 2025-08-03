@@ -81,7 +81,6 @@ static void MX_IWDG_Init(void);
 /* USER CODE BEGIN PFP */
 void speaker_floor(uint8_t tenFloor, uint8_t oneFloor);
 void Set_speed_can(CAN_HandleTypeDef hcan, bool detect_speed, uint8_t speed);
-void speaker_push_button(uint8_t speakerButton[5][4]);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -97,103 +96,131 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 	{
 		if ((RxData[0] & 0x04) == 0x04)
 		{
-			if (RxData[2] == 0x07)
+			if (RxData[2] == 0x01)
 			{
-				if (RxData[2] |= rxDataSave[2])
+				rxDataSave[2] = RxData[2];
+				rxDataSave[4] = 0;
+				rxDataSave[3] = 0;
+				for (uint8_t i=0; i<5; i++)
+				{
+					if (speakerState[i][0] == 0)
+					{
+						speakerState[i][0] = speak_state_fire;
+						return;
+					}
+				}
+			} else if (RxData[2] == 0x04)
+			{
+				if (RxData[4] != rxDataSave[4])
 				{
 					rxDataSave[2] = RxData[2];
+					rxDataSave[4] = RxData[4];
+					rxDataSave[3] = 0;
 					for (uint8_t i=0; i<5; i++)
 					{
 						if (speakerState[i][0] == 0)
 						{
-//							speakerButton[i][0] = ;
-							if ((RxData[0] & 0x04) ==  0x04)
-							{
-								speakerButton[i][1] = 1;
-							} else
-							{
-								speakerButton[i][1] = 0;
-							}
-							speakerButton[i][2] = button[1];
-							speakerButton[i][3] = button[2];
+							speakerState[i][0] = speak_state_door;
+							speakerState[i][1] = RxData[4];
+							return;
+						}
+					}
+				}
+			} else if (RxData[2] == 0x05)
+			{
+				rxDataSave[2] = RxData[2];
+				rxDataSave[4] = 0;
+				rxDataSave[3] = 0;
+				for (uint8_t i=0; i<5; i++)
+				{
+					if (speakerState[i][0] == 0)
+					{
+						speakerState[i][0] = speak_state_overload;
+						return;
+					}
+				}
+			} else if (RxData[2] == 0x06)
+			{
+				rxDataSave[2] = RxData[2];
+				rxDataSave[4] = 0;
+				rxDataSave[3] = 0;
+				for (uint8_t i=0; i<5; i++)
+				{
+					if (speakerState[i][0] == 0)
+					{
+						speakerState[i][0] = speak_state_recue;
+						return;
+					}
+				}
+			} else if (RxData[2] == 0x07)
+			{
+				if (RxData[2] != rxDataSave[2])
+				{
+					rxDataSave[2] = RxData[2];
+					rxDataSave[4] = 0;
+					rxDataSave[3] = 0;
+					for (uint8_t i=0; i<5; i++)
+					{
+						if (speakerState[i][0] == 0)
+						{
+							speakerState[i][0] = speak_state_floor;
+							return;
+						}
+					}
+				}
+			} else if (RxData[2] == 0x08 || RxData[2] == 0x0A)
+			{
+				rxDataSave[2] = RxData[2];
+				rxDataSave[4] = 0;
+				rxDataSave[3] = 0;
+				for (uint8_t i=0; i<5; i++)
+				{
+					if (speakerState[i][0] == 0)
+					{
+						speakerState[i][0] = speak_state_fault;
+						return;
+					}
+				}
+			} else if (RxData[2] == 0x09)
+			{
+				if (RxData[2] != rxDataSave[2])
+				{
+					rxDataSave[2] = RxData[2];
+					rxDataSave[4] = 0;
+					rxDataSave[3] = 0;
+					for (uint8_t i=0; i<5; i++)
+					{
+						if (speakerState[i][0] == 0)
+						{
+							speakerState[i][0] = speak_state_VIP;
+							return;
+						}
+					}
+				}
+			} else if (RxData[2] == 0x0B)
+			{
+				if (RxData[3] != rxDataSave[3])
+				{
+					rxDataSave[2] = RxData[2];
+					rxDataSave[3] = RxData[3];
+					rxDataSave[4] = 0;
+					for (uint8_t i=0; i<5; i++)
+					{
+						if (speakerState[i][0] == 0)
+						{
+							speakerState[i][0] = speak_state_direction;
+							speakerState[i][1] = RxData[3];
 							return;
 						}
 					}
 				}
 			}
+		} else
+		{
+			rxDataSave[2] = 0;
+			rxDataSave[3] = 0;
+			rxDataSave[4] = 0;
 		}
-//		if ((RxData[0]&0x04) == 0x04)
-//		{
-//			if (RxData[2] == 0x07) // floor
-//			{
-//				speakFloor = true;
-//				speakFire = false;
-//				speakOverLoad = false;
-//				speakDoorOpen = false;
-//				speakDoorClose = false;
-//				speakDiriectionUp = false;
-//				speakDirectionDown = false;
-//			} else if (RxData[2] == 0x04) // door
-//			{
-//				if (RxData[4] == 0x01)
-//				{
-//					speakDoorOpen = true;
-//					speakDoorClose = false;
-//				} else if (RxData[4] == 0x02)
-//				{
-//					speakDoorOpen = false;
-//					speakDoorClose = true;
-//				}
-//				speakFloor = false;
-//				speakFire = false;
-//				speakOverLoad = false;
-//				speakDiriectionUp = false;
-//				speakDirectionDown = false;
-//			}  else if (RxData[2] == 0x01) // fire
-//			{
-//				speakFloor = false;
-//				speakFire = true;
-//				speakOverLoad = false;
-//				speakDoorOpen = false;
-//				speakDoorClose = false;
-//				speakDiriectionUp = false;
-//				speakDirectionDown = false;
-//			}  else if (RxData[2] == 0x05) // over load
-//			{
-//				speakFloor = false;
-//				speakFire = false;
-//				speakOverLoad = true;
-//				speakDoorOpen = false;
-//				speakDoorClose = false;
-//				speakDiriectionUp = false;
-//				speakDirectionDown = false;
-//			}  else if (RxData[2] == 0x0B) // direction
-//			{
-//				if (RxData[3] == 0x01) // up
-//				{
-//					speakDiriectionUp = true;
-//					speakDirectionDown = false;
-//				} else if (RxData[3] == 0x02) // down
-//				{
-//					speakDiriectionUp = false;
-//					speakDirectionDown = true;
-//				}
-//				speakFloor = false;
-//				speakFire = false;
-//				speakOverLoad = false;
-//				speakDoorOpen = false;
-//				speakDoorClose = false;
-//			}
-//		} else
-//		{
-//			speakFloor = false;
-//			speakFire = false;
-//			speakOverLoad = false;
-//			speakDoorOpen = false;
-//			speakDoorClose = false;
-//			speakDiriectionUp = false;
-//			speakDirectionDown = false;
-//		}
 	} else if (RxHeader.StdId == 0x502)
 	{
 		oneFloor = RxData[2];
@@ -285,6 +312,8 @@ int main(void)
   MX_IWDG_Init();
   /* USER CODE BEGIN 2 */
   HAL_TIM_Base_Start_IT(&htim3);
+  HAL_UARTEx_ReceiveToIdle_DMA(&huart2, uart_data, 50);
+  __HAL_DMA_DISABLE_IT(&hdma_usart2_rx, DMA_IT_HT);
   while (!detect_speed)
   {
 	  if (!read_speed)
@@ -305,12 +334,10 @@ int main(void)
 		  Set_speed_can(hcan, detect_speed, speed);
 	  }
   }
-  HAL_UARTEx_ReceiveToIdle_DMA(&huart2, uart_data, 50);
-  __HAL_DMA_DISABLE_IT(&hdma_usart2_rx, DMA_IT_HT);
-  while (feedbackSpeaker != 0x02)
-  HAL_Delay(100);
-  feedbackSpeaker = 0;
+  HAL_Delay(1000);
   DF_Init(30);
+  while (feedbackSpeaker != 0x02);
+  feedbackSpeaker = 0;
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -320,83 +347,94 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	  speaker_push_button(speakerButton);
 
-	  if (speakFloor)
+	  if (speakerButton[0][0] == 1)
 	  {
-		  if (!isSpeakFloor)
+		  if (speakerButton[0][1] == 1)
 		  {
-//			  floorNow = speaker_floor_funtion(tenFloor, oneFloor);
-			  DF_Play(floorNow);
-			  while (uart_data[6] != floorNow);
-			  isSpeakFloor = true;
+			  // đọc cancel
+			  DF_Play(41);
+			  while (feedbackSpeaker != 41);
+			  feedbackSpeaker = 0;
+//			  HAL_Delay(100);
 		  }
-	  } else
-	  {
-		  isSpeakFloor = false;
-	  }
-	  if (speakDoorOpen) // door open
-	  {
-		  if (!isSpeakDoorOpen)
+		  // đọc tầng
+		  speaker_floor(speakerButton[0][2], speakerButton[0][3]);
+		  for (uint8_t i=0; i<4; i++)
 		  {
-			  DF_Play(35);
-			  while (uart_data[6] != 35);
-			  isSpeakDoorOpen = true;
+			  speakerButton[i][0] = speakerButton[i+1][0];
+			  speakerButton[i][1] = speakerButton[i+1][1];
+			  speakerButton[i][2] = speakerButton[i+1][2];
+			  speakerButton[i][3] = speakerButton[i+1][3];
 		  }
-	  } else
-	  {
-		  isSpeakDoorOpen = false;
+		  speakerButton[4][0] = 0;
+		  speakerButton[4][1] = 0;
+		  speakerButton[4][2] = 0;
+		  speakerButton[4][3] = 0;
 	  }
-	  if (speakDoorClose) // door close
+	  if (speakerState[0][0] != 0)
 	  {
-		  if (!isSpeakDoorClose)
+		  switch (speakerState[0][0])
 		  {
-			  DF_Play(36);
-			  while (uart_data[6] != 36);
-			  isSpeakDoorClose = true;
-		  }
-	  } else
-	  {
-		  isSpeakDoorClose = false;
-	  }
-	  if (speakDiriectionUp) // direction up
-	  {
-		  if (!isSpeakDiriectionUp)
-		  {
-			  DF_Play(37);
-			  while (uart_data[6] != 37);
-			  isSpeakDiriectionUp = true;
-		  }
-	  } else
-	  {
-		  isSpeakDiriectionUp = false;
-	  }
-	  if (speakDirectionDown) // direction dowwn
-	  {
-		  if (!isSpeakDirectionDown)
-		  {
-			  DF_Play(38);
-			  while (uart_data[6] != 38);
-			  isSpeakDirectionDown = true;
-		  }
-	  } else
-	  {
-		  isSpeakDirectionDown = false;
-	  }
-	  if (speakFire) // fire
-	  {
-		  DF_Play(39);
-		  while (uart_data[6] != 39);
-		  HAL_Delay(1000);
-		  speakFire = false;
-	  }
+		  case speak_state_door:
+			  if (speakerState[0][1] == 1)
+			  {
+				  DF_Play(35); // open
+				  while (feedbackSpeaker != 35);
+				  feedbackSpeaker = 0;
+				  HAL_Delay(200);
+			  } else if (speakerState[0][1] == 2)
+			  {
+				  DF_Play(36); // close
+				  while (feedbackSpeaker != 36);
+				  feedbackSpeaker = 0;
+				  HAL_Delay(200);
+			  }
+			  break;
+		  case speak_state_direction:
+			  if (speakerState[0][1] == 1)
+			  {
+				  DF_Play(37); //  up
+				  while (feedbackSpeaker != 37);
+				  feedbackSpeaker = 0;
+				  HAL_Delay(200);
+			  } else if (speakerState[0][1] == 2)
+			  {
+				  DF_Play(38); // down
+				  while (feedbackSpeaker != 38);
+				  feedbackSpeaker = 0;
+				  HAL_Delay(200);
+			  }
+			  break;
+		  case speak_state_floor:
+			  DF_Play(42); // ding dong
+			  while (feedbackSpeaker != 42);
+			  feedbackSpeaker = 0;
+			  HAL_Delay(100);
+			  // đọc tầng
+			  speaker_floor(tenFloor, oneFloor);
+//			  HAL_Delay(200);
+			  DF_Play(43); // floor
+			  while (feedbackSpeaker != 43);
+			  feedbackSpeaker = 0;
+			  HAL_Delay(200);
+			  break;
+		  default:
+			  DF_Play(speakerState[0][0]);
 
-	  if (speakOverLoad) // overload
-	  {
-		  DF_Play(40);
-		  while (uart_data[6] != 40);
-		  HAL_Delay(1000);
-		  speakOverLoad = false;
+//			  DF_Play_from_Folder(1, speakerState[0][0]);
+			  while (feedbackSpeaker != speakerState[0][0]);
+			  feedbackSpeaker = 0;
+			  HAL_Delay(200);
+			  break;
+		  }
+		  for (uint8_t i=0; i<4; i++)
+		  {
+			  speakerState[i][0] = speakerState[i+1][0];
+			  speakerState[i][1] = speakerState[i+1][1];
+		  }
+		  speakerState[4][0] = 0;
+		  speakerState[4][1] = 0;
 	  }
 	  HAL_Delay(100);
   }
@@ -634,7 +672,6 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE BEGIN 4 */
 
-
 void Set_speed_can(CAN_HandleTypeDef hcan, bool detect_speed, uint8_t speed)
 {
 	hcan.Init.Mode = CAN_MODE_SILENT;
@@ -732,34 +769,12 @@ void speaker_floor(uint8_t tenFloor, uint8_t oneFloor)
 	{
 		floor = (tenFloor - 0x30)*10 + (oneFloor - 0x30);
 	}
-	floor += 100;
 	DF_Play(floor);
+//	HAL_Delay(1200);
 	while (feedbackSpeaker != floor);
 	feedbackSpeaker = 0;
 }
-void speaker_push_button(uint8_t speakerButton[5][4])
-{
-	if (speakerButton[0][0] == 1)
-	{
-		if (speakerButton[0][1] == 1)
-		{
-			// đọc cancel
-		}
-		// đọc tầng
-		speaker_floor(speakerButton[0][2], speakerButton[0][3]);
-		for (uint8_t i=0; i<4; i++)
-		{
-			speakerButton[i][0] = speakerButton[i+1][0];
-			speakerButton[i][1] = speakerButton[i+1][1];
-			speakerButton[i][2] = speakerButton[i+1][2];
-			speakerButton[i][3] = speakerButton[i+1][3];
-		}
-		speakerButton[4][0] = 0;
-		speakerButton[4][1] = 0;
-		speakerButton[4][2] = 0;
-		speakerButton[4][3] = 0;
-	}
-}
+
 /* USER CODE END 4 */
 
 /**

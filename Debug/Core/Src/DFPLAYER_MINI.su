@@ -7,3 +7,4 @@
 ../Core/Src/DFPLAYER_MINI.c:79:6:DF_Playback	8	static
 ../Core/Src/DFPLAYER_MINI.c:85:6:Check_Key	8	static
 ../Core/Src/DFPLAYER_MINI.c:117:6:DF_Play	16	static
+../Core/Src/DFPLAYER_MINI.c:122:6:DF_Play_from_Folder	16	static

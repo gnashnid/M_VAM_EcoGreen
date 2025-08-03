@@ -19,5 +19,5 @@ void DF_Playback (void);
 
 void Check_Key (void);
 void DF_Play(uint8_t data);
-
+void DF_Play_from_Folder(uint8_t num_folder, uint8_t num_music);
 #endif /* INC_DFPLAYER_MINI_H_ */
