@@ -67,7 +67,7 @@ bool speakFloor, speakDoorOpen, speakDoorClose, speakDiriectionUp, speakDirectio
 	 isSpeakFloor, isSpeakDoorOpen, isSpeakDoorClose, isSpeakDiriectionUp, isSpeakDirectionDown,
 	 isSpeakFire, isSpeakOverLoad, detect_speed, read_speed;
 uint16_t feedbackSpeaker;
-uint32_t timer;
+uint32_t timer, breakTimer;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -354,7 +354,14 @@ int main(void)
 		  {
 			  // đọc cancel
 			  DF_Play(41);
-			  while (feedbackSpeaker != 41);
+			  breakTimer = HAL_GetTick();
+			  while (feedbackSpeaker != 41)
+			  {
+				  if (abs(HAL_GetTick() - breakTimer) > 500)
+				  {
+					  break;
+				  }
+			  }
 			  feedbackSpeaker = 0;
 //			  HAL_Delay(100);
 		  }
@@ -380,13 +387,27 @@ int main(void)
 			  if (speakerState[0][1] == 1)
 			  {
 				  DF_Play(35); // open
-				  while (feedbackSpeaker != 35);
+				  breakTimer = HAL_GetTick();
+				  while (feedbackSpeaker != 35)
+				  {
+					  if (abs(HAL_GetTick() - breakTimer) > 500)
+					  {
+						  break;
+					  }
+				  }
 				  feedbackSpeaker = 0;
 				  HAL_Delay(200);
 			  } else if (speakerState[0][1] == 2)
 			  {
 				  DF_Play(36); // close
-				  while (feedbackSpeaker != 36);
+				  breakTimer = HAL_GetTick();
+				  while (feedbackSpeaker != 36)
+				  {
+					  if (abs(HAL_GetTick() - breakTimer) > 500)
+					  {
+						  break;
+					  }
+				  }
 				  feedbackSpeaker = 0;
 				  HAL_Delay(200);
 			  }
@@ -395,27 +416,55 @@ int main(void)
 			  if (speakerState[0][1] == 1)
 			  {
 				  DF_Play(37); //  up
-				  while (feedbackSpeaker != 37);
+				  breakTimer = HAL_GetTick();
+				  while (feedbackSpeaker != 37)
+				  {
+					  if (abs(HAL_GetTick() - breakTimer) > 500)
+					  {
+						  break;
+					  }
+				  }
 				  feedbackSpeaker = 0;
 				  HAL_Delay(200);
 			  } else if (speakerState[0][1] == 2)
 			  {
 				  DF_Play(38); // down
-				  while (feedbackSpeaker != 38);
+				  breakTimer = HAL_GetTick();
+				  while (feedbackSpeaker != 38)
+				  {
+					  if (abs(HAL_GetTick() - breakTimer) > 500)
+					  {
+						  break;
+					  }
+				  }
 				  feedbackSpeaker = 0;
 				  HAL_Delay(200);
 			  }
 			  break;
 		  case speak_state_floor:
 			  DF_Play(42); // ding dong
-			  while (feedbackSpeaker != 42);
+			  breakTimer = HAL_GetTick();
+			  while (feedbackSpeaker != 42)
+			  {
+				  if (abs(HAL_GetTick() - breakTimer) > 2000)
+				  {
+					  break;
+				  }
+			  }
 			  feedbackSpeaker = 0;
 			  HAL_Delay(100);
 			  // đọc tầng
 			  speaker_floor(tenFloor, oneFloor);
 //			  HAL_Delay(200);
 			  DF_Play(43); // floor
-			  while (feedbackSpeaker != 43);
+			  breakTimer = HAL_GetTick();
+			  while (feedbackSpeaker != 43)
+			  {
+				  if (abs(HAL_GetTick() - breakTimer) > 500)
+				  {
+					  break;
+				  }
+			  }
 			  feedbackSpeaker = 0;
 			  HAL_Delay(200);
 			  break;
@@ -423,7 +472,14 @@ int main(void)
 			  DF_Play(speakerState[0][0]);
 
 //			  DF_Play_from_Folder(1, speakerState[0][0]);
-			  while (feedbackSpeaker != speakerState[0][0]);
+			  breakTimer = HAL_GetTick();
+			  while (feedbackSpeaker != speakerState[0][0])
+			  {
+				  if (abs(HAL_GetTick() - breakTimer) > 500)
+				  {
+					  break;
+				  }
+			  }
 			  feedbackSpeaker = 0;
 			  HAL_Delay(200);
 			  break;
@@ -771,7 +827,14 @@ void speaker_floor(uint8_t tenFloor, uint8_t oneFloor)
 	}
 	DF_Play(floor);
 //	HAL_Delay(1200);
-	while (feedbackSpeaker != floor);
+	breakTimer = HAL_GetTick();
+	while (feedbackSpeaker != floor)
+	{
+		if (abs(HAL_GetTick() - breakTimer) > 1500)
+		{
+			break;
+		}
+	}
 	feedbackSpeaker = 0;
 }
 
