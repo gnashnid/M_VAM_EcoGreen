@@ -336,7 +336,14 @@ int main(void)
   }
   HAL_Delay(1000);
   DF_Init(30);
-  while (feedbackSpeaker != 0x02);
+  breakTimer = HAL_GetTick();
+  while (feedbackSpeaker != 0x02)
+  {
+	  if (abs(HAL_GetTick() - breakTimer) > 500)
+	  {
+		  break;
+	  }
+  }
   feedbackSpeaker = 0;
   /* USER CODE END 2 */
 
